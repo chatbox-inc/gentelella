@@ -1,60 +1,56 @@
-var gulp = require('gulp'),
-    concat = require('gulp-concat'),
-    uglify = require('gulp-uglify'),
-    rename = require('gulp-rename'),
-    sass = require('gulp-ruby-sass'),
-    autoprefixer = require('gulp-autoprefixer'),
-    browserSync = require('browser-sync').create();
+"use strict"
+/**
+ * common installers
+ * npm i gulp gulp-load-plugins gulp-plumber gulp-notify run-sequence --save
+ */
+var gulp = require("gulp");
+var runSequence = require("run-sequence");
 
-var DEST = 'build/';
+var src = "./frontend/";
+if(process.env.APP_MODE=="build"){
+    var dest = "./build/";
+}else{
+    var dest = "./public/";
+}
 
-gulp.task('scripts', function() {
-    return gulp.src([
-        'src/js/helpers/*.js',
-        'src/js/*.js',
-      ])
-      .pipe(concat('custom.js'))
-      .pipe(gulp.dest(DEST+'/js'))
-      .pipe(rename({suffix: '.min'}))
-      .pipe(uglify())
-      .pipe(gulp.dest(DEST+'/js'))
-      .pipe(browserSync.stream());
+var tasks = {};
+[
+    "sass",
+    "jade",
+    "webpack",
+    "browserSync"
+    //"wintersmith"
+].forEach((taskName) => {
+    tasks[taskName] = require(`./frontend/libs/gulp/${taskName}.js`)({src,dest})
+})
+
+gulp.task("sass",()=> tasks.sass.bourbon());
+gulp.task("watch:sass",()=> gulp.watch(tasks.sass.target,["sass"]) );
+
+gulp.task("jade",()=> tasks.jade.build());
+gulp.task("watch:jade",()=> gulp.watch(tasks.jade.target,["jade"]) );
+
+gulp.task("webpack",() => tasks.webpack.build());
+gulp.task("watch:webpack",() => gulp.watch(tasks.webpack.target,["webpack"]) );
+
+//gulp.task("ws:preview",() => tasks.wintersmith.preview("./wintersmith.json"));
+//gulp.task("ws:build",  () => tasks.wintersmith.build("./wintersmith.json"));
+
+gulp.task("server",() => tasks.browserSync.start());
+
+gulp.task("watch",[
+    "watch:sass",
+    "watch:jade",
+    "watch:webpack",
+]);
+
+gulp.task("build",function(cb){
+    runSequence([
+        "sass",
+        "jade",
+        //"webpack"
+    ],cb);
 });
 
-// TODO: Maybe we can simplify how sass compile the minify and unminify version
-var compileSASS = function (filename, options) {
-  return sass('src/scss/*.scss', options)
-        .pipe(autoprefixer('last 2 versions', '> 5%'))
-        .pipe(concat(filename))
-        .pipe(gulp.dest(DEST+'/css'))
-        .pipe(browserSync.stream());
-};
+gulp.task("default",["watch"])
 
-gulp.task('sass', function() {
-    return compileSASS('custom.css', {});
-});
-
-gulp.task('sass-minify', function() {
-    return compileSASS('custom.min.css', {style: 'compressed'});
-});
-
-gulp.task('browser-sync', function() {
-    browserSync.init({
-        server: {
-            baseDir: './'
-        },
-        startPath: './production/index.html'
-    });
-});
-
-gulp.task('watch', function() {
-  // Watch .html files
-  gulp.watch('production/*.html', browserSync.reload);
-  // Watch .js files
-  gulp.watch('src/js/*.js', ['scripts']);
-  // Watch .scss files
-  gulp.watch('src/scss/*.scss', ['sass', 'sass-minify']);
-});
-
-// Default Task
-gulp.task('default', ['browser-sync', 'watch']);
