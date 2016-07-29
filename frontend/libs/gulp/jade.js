@@ -25,6 +25,7 @@ module.exports = function(path){
         gulp.src([
                 `${path.src}assets/tmpl/**/*.jade`,
                 `!${path.src}assets/tmpl/**/_*`,
+                `!${path.src}assets/tmpl/_*/*.jade`,
             ])
             .pipe($.plumber({
                 errorHandler: $.notify.onError('<%= error.message %>')
